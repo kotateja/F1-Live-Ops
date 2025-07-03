@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+mlflow
+feast[redis]
+prometheus-client
+pandas

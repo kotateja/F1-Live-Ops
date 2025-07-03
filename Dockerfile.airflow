@@ -1,0 +1,23 @@
+FROM apache/airflow:2.9.1-python3.11
+
+USER root
+# ── system packages first ───────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc build-essential git && \
+    rm -rf /var/lib/apt/lists/*
+
+# switch to the airflow user *before* any pip install
+USER airflow
+ENV AIRFLOW_HOME=/opt/airflow
+
+# ── Python deps (your flin + requirements.txt) ──────────────────
+# 1) analytics package
+RUN pip install --no-cache-dir \
+      "git+https://github.com/kotateja/WeAreChecking-FastF1.git@main#egg=flin"
+
+# 2) Airflow-specific extras
+COPY airflow/requirements.txt /tmp/reqs.txt
+RUN pip install --no-cache-dir -r /tmp/reqs.txt
+
+# ── copy DAGs ───────────────────────────────────────────────────
+COPY airflow/dags ${AIRFLOW_HOME}/dags

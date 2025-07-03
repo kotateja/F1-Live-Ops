@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1751534462949
+current_stage: Production
+description: ''
+last_updated_timestamp: 1751534463030
+name: NextLap
+run_id: 482ccc70880e442ea1d7db54c9e1d193
+run_link: ''
+source: mlflow-artifacts:/771888635840639953/482ccc70880e442ea1d7db54c9e1d193/artifacts/model
+status: READY
+status_message: null
+storage_location: mlflow-artifacts:/771888635840639953/482ccc70880e442ea1d7db54c9e1d193/artifacts/model
+user_id: null
+version: 1
