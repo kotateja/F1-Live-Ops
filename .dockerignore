@@ -1,7 +1,0 @@
-__pycache__/
-*.pyc
-*.ipynb
-data/
-.git/
-.vscode/
-*.feather

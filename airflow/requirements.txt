@@ -1,6 +1,0 @@
-fastf1>=3.3
-pandas
-numpy
-feast[redis]
-mlflow
-great-expectations
