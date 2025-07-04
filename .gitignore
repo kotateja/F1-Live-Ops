@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.log
+.env
+.venv/
+
+# Logs
+logs/
+
+# macOS
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Data (if generated)
+data/
