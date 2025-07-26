@@ -8,6 +8,7 @@ pandas
 numpy
 scikit-learn
 statsmodels
+pyarrow>=12
 
 # HTTP Client
 requests
@@ -19,7 +20,9 @@ mlflow
 torch
 
 # MLOps - Data Validation
-great-expectations
+great-expectations==0.17.21
+airflow-provider-great-expectations==0.3.0
+
 
 # MLOps - Feature Store
 feast
@@ -28,7 +31,7 @@ feast
 apache-airflow
 apache-airflow-providers-docker
 pendulum
-
+airflow-provider-great-expectations==0.3.0
 # Plotting - Required by source project
 matplotlib
 seaborn

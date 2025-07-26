@@ -5,6 +5,7 @@ services:
       - "8000:8000"
     volumes:
       - ./src:/app/src
+      - ./great_expectations:/app/great_expectations
     command: uvicorn src.service.app:app --host 0.0.0.0 --port 8000 --reload
     env_file:
       - .env
@@ -30,7 +31,7 @@ services:
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
 
-  airflow-webserver:
+  airflow-init-user:
     build:
       context: .
       dockerfile: Dockerfile.airflow
@@ -41,7 +42,24 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__WEBSERVER__SECRET_KEY=your_super_secret_key_change_me
+    command: bash -c "airflow users create -u admin -f admin -l user -r Admin -e admin@example.com -p admin"
+    restart: "no"
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: f1-live-ops-airflow
+    depends_on:
+      - postgres
+      - airflow-init-user
+    environment:
+      - GREAT_EXPECTATIONS_HOME=/opt/airflow/great_expectations
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_SECRET_KEY:-sup3r_s3cr3t_long_random_string}
+
     env_file:
       - .env
     volumes:
@@ -49,6 +67,8 @@ services:
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
       - ./src:/opt/airflow/src
+      - ./great_expectations:/opt/airflow/great_expectations
+      - ./data:/opt/airflow/data
     ports:
       - "8080:8080"
     command: webserver
@@ -66,15 +86,21 @@ services:
     image: f1-live-ops-airflow
     depends_on:
       - postgres
+      - airflow-init-user
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
       - ./src:/opt/airflow/src
+      - ./great_expectations:/opt/airflow/great_expectations
+      - ./data:/opt/airflow/data
     environment:
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    - GREAT_EXPECTATIONS_HOME=/opt/airflow/great_expectations
+    - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+    - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+    - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_SECRET_KEY:-sup3r_s3cr3t_long_random_string}
+
     command: scheduler
 
 volumes:

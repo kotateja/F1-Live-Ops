@@ -16,3 +16,10 @@ logs/
 
 # Data (if generated)
 data/
+
+# Great Expectations
+great_expectations/uncommitted/
+great_expectations/validations/
+
+# CHANGELOG
+CHANGELOG.md

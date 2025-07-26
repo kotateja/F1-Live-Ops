@@ -1,0 +1,33 @@
+name: clean_laps_checkpoint
+config_version: 1.0
+class_name: Checkpoint
+run_name_template: "%Y%m%d-%H%M%S-clean-laps"
+
+# We'll override "validations" from Airflow, so it's fine to leave this empty here.
+validations:
+  - batch_request:
+      datasource_name: processed_files
+      data_connector_name: processed_laps_connector
+      data_asset_name: PLACEHOLDER   # overridden in Airflow
+      batch_spec_passthrough:
+        reader_method: read_parquet
+    expectation_suite_name: clean_laps_suite
+
+# ↓↓↓ THIS BLOCK IS MANDATORY IN 0.17.x ↓↓↓
+action_list:
+  - name: store_validation_result
+    action:
+      class_name: StoreValidationResultAction
+  - name: store_evaluation_params
+    action:
+      class_name: StoreEvaluationParametersAction
+  - name: update_data_docs
+    action:
+      class_name: UpdateDataDocsAction
+
+# (optional, but nice to keep)
+evaluation_parameters: {}
+runtime_configuration:
+  result_format:
+    result_format: SUMMARY
+    partial_unexpected_count: 20

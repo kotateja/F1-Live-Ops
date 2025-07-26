@@ -12,6 +12,21 @@ and this project adheres to Semantic Versioning.
 *   **Model Training Optimization:** Reduced the grid search space for LightGBM in `src/flin/modelling.py` to improve training speed.
 *   **Model Training Optimization:** Set `n_jobs=1` for `LGBMRegressor` in `src/flin/modelling.py` to prevent excessive resource consumption during training.
 *   **DAG Consistency:** Updated `dags/run_pipeline_locally.py` and `dags/nightly_retrain.py` to align with the modified return signature of `modelling.strict_train_tune` after removing the LSTM model.
+*   **Dependency pins for GE integration** Pinned `great-expectations==0.17.21` and `airflow-provider-great-expectations==0.3.0` to ensure API compatibility with the classic (v0.17) config and checkpoint flow.
+*   **Great Expectations configuration aligned with GE 0.17.x**  
+  * Updated `great_expectations/great_expectations.yml` to **`config_version: 3.0`** (required when using a `checkpoint_store` in GE 0.17.x).
+  * Replaced all `FilesystemStoreBackend` occurrences with **`TupleFilesystemStoreBackend`** (the correct class for GE 0.17.x).
+  * Explicitly defined default store names:
+    * `expectations_store_name`, `validations_store_name`, `checkpoint_store_name`, `evaluation_parameter_store_name`.
+
+* **Airflow DAG (nightly_retrain.py)**  
+  * Rewrote the validation task to **not** call `context.run_checkpoint()` directly (which spawned a second, misconfigured context).  
+    Instead, we now build and run an **ephemeral `Checkpoint` in code**, passing a **`RuntimeBatchRequest`** that points directly to the parquet path.
+  * Added defensive logging and checks (showing asset name, parquet path, dir listing, and a head of the validated DataFrame).
+  * Ensured **`reader_method: read_parquet`** (not `parquet`).
+
+* **Airflow DB initialization line in docs/scripts**  
+  * Clarified that the correct command is `airflow db upgrade` (not `db migrate`).
 
 ### **Removed**
 
@@ -25,6 +40,27 @@ and this project adheres to Semantic Versioning.
 * **Airflow User:** Created an initial admin user for the Airflow UI.
 * **Airflow Dockerfile (`Dockerfile.airflow`):** Created a dedicated Dockerfile for Airflow to manage its specific dependencies and environment.
 * **Airflow Admin User:** Manually created a new `admin` user to ensure reliable access to the Airflow UI.
+### **Added**
+
+* **Great Expectations Project Scaffolding:**  
+  * Created the `great_expectations/` project with standard folders: `expectations/`, `checkpoints/`, `uncommitted/data_docs/`, `plugins/`.
+  * Added initial suite `expectations/clean_laps_suite.json` (baseline expectations).
+  * Added checkpoint `checkpoints/clean_laps_checkpoint.yml` (now used via an ephemeral, in-code checkpoint run).
+  * Data Docs are written to `great_expectations/uncommitted/data_docs/local_site/`.
+
+* **Great Expectations (GX) Validation in Airflow DAG:**  
+  * Introduced a data validation step in `dags/nightly_retrain.py` that runs before model training.
+  * Implemented a `RuntimeBatchRequest` + ephemeral checkpoint pattern to validate the exact parquet file produced by the pipeline, avoiding brittle regex/asset discovery and “empty batch_list” errors.
+  * Added a runtime data connector (`default_runtime_data_connector_name`) to `great_expectations.yml` to support `RuntimeBatchRequest`.
+  * Added a `checkpoint_store` and configured a persistent filesystem store for expectations, validations, and Data Docs.
+
+* **Project-wide GE Environment Pinning:**  
+  * Set `GREAT_EXPECTATIONS_HOME=/opt/airflow/great_expectations` in `docker-compose.yml` for both `airflow-webserver` and `airflow-scheduler` so every task loads the same GE project.
+  * Deleted a stray `/opt/airflow/gx` GE project that was shadowing the real one inside containers.
+
+* **Parquet Engine:**  
+  * Added `pyarrow` to `requirements.txt` to ensure Great Expectations can read parquet files with `reader_method: read_parquet`.
+
 
 ### **Fixed**
 
@@ -32,6 +68,28 @@ and this project adheres to Semantic Versioning.
 *   **Airflow Security:** Resolved the "empty cryptography key" warning by generating and implementing a Fernet key. This secures sensitive data (e.g., connection credentials) stored in the Airflow database by enabling encryption. The key is managed securely via a `.env` file.
 *   **Airflow Data Persistence:** Added a persistent named volume to the `postgres` service in `docker-compose.yml`. This ensures that the Airflow database (including users, connections, and task history) is saved permanently on the host machine and survives container restarts and rebuilds.
 *   **Airflow Task Data Integrity:** Proactively fixed a data type issue in the `nightly_retrain_pipeline` DAG. Added a data type conversion step to explicitly convert all `Timedelta` and `Timestamp` columns back to their proper pandas types after they are passed between tasks. This prevents `AttributeError` exceptions caused by data serialization.
+* **“no config_version key” / “UnsupportedConfigVersionError”**  
+  Resolved by setting:
+  * `great_expectations.yml` → `config_version: 3.0`,
+  * `clean_laps_checkpoint.yml` → `config_version: 1.0`,
+  * and pinning to `great-expectations==0.17.21`.
+
+* **“The module … does not contain FilesystemStoreBackend”**  
+  Fixed by switching to **`TupleFilesystemStoreBackend`**, which exists in GE 0.17.x.
+
+* **“validation action_list cannot be empty”**  
+  Added a valid `action_list` (store results, store evaluation params, update Data Docs) to `clean_laps_checkpoint.yml`.
+
+* **“BatchRequest returned an empty batch_list”**  
+  Eliminated by:
+  * Returning the correct `asset_name` (filename **without** `.parquet`),
+  * Installing a parquet engine (`pyarrow`),
+  * Moving to a **RuntimeBatchRequest** that points at the exact parquet file,
+  * And running an **ephemeral checkpoint** to avoid the second (fluent/empty) context.
+
+* **Airflow Webserver 403 log & `secret_key` warning**  
+    Set a shared `AIRFLOW__WEBSERVER__SECRET_KEY` and a `FERNET_KEY` in `docker-compose.yml` to fix authorization & encryption warnings.
+
 
 ### **Changed**
 
