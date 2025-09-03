@@ -7,6 +7,8 @@ services:
       - ./src:/app/src
       - ./great_expectations:/app/great_expectations
     command: uvicorn src.service.app:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow-server:5000
     env_file:
       - .env
 
@@ -59,6 +61,8 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_SECRET_KEY:-sup3r_s3cr3t_long_random_string}
+      - PYTHONPATH=/opt/airflow:/opt/airflow/src:/opt/airflow/feature_repo
+      - MLFLOW_TRACKING_URI=http://mlflow-server:5000
 
     env_file:
       - .env
@@ -69,6 +73,8 @@ services:
       - ./src:/opt/airflow/src
       - ./great_expectations:/opt/airflow/great_expectations
       - ./data:/opt/airflow/data
+      - ./feature_repo:/opt/airflow/feature_repo
+
     ports:
       - "8080:8080"
     command: webserver
@@ -94,14 +100,42 @@ services:
       - ./src:/opt/airflow/src
       - ./great_expectations:/opt/airflow/great_expectations
       - ./data:/opt/airflow/data
+      - ./feature_repo:/opt/airflow/feature_repo
+
     environment:
     - GREAT_EXPECTATIONS_HOME=/opt/airflow/great_expectations
     - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
     - AIRFLOW__CORE__LOAD_EXAMPLES=False
     - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_SECRET_KEY:-sup3r_s3cr3t_long_random_string}
+    - PYTHONPATH=/opt/airflow:/opt/airflow/src:/opt/airflow/feature_repo
+    - MLFLOW_TRACKING_URI=http://mlflow-server:5000
+
 
     command: scheduler
+  
+  redis-cache:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  mlflow-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    container_name: mlflow-server
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    restart: unless-stopped
+
+
 
 volumes:
   postgres-db-volume:
+  redisdata:
+  mlflow-data:

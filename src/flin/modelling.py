@@ -427,4 +427,3 @@ def evaluate_holdout(best_hgbr, best_lgb, full_pre, all_laps_clean):
     print(f"HGBR hold-out MAE  : {mean_absolute_error(y_hold, h_pred):.3f}s")
     print(f"LGBM hold-out MAE  : {mean_absolute_error(y_hold, l_pred):.3f}s")
     print(f"Blend hold-out MAE : {mean_absolute_error(y_hold, blend ):.3f}s")
-

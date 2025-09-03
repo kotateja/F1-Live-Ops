@@ -7,40 +7,24 @@ and this project adheres to Semantic Versioning.
 
 ## **\[Unreleased\]**
 
+### **Added**
+
+* **Prediction API (`/predict`):** Implemented the `src/service/app.py` endpoint that loads the Production model from the MLflow Model Registry (`models:/f1-laptime-blend/Production`), enforces strict feature order, coerces input types to the training schema, and returns `prediction_seconds`.
+* **Dedicated MLflow image:** Introduced `Dockerfile.mlflow` and updated the `mlflow-server` service to build from this image with a proper `CMD` that runs the MLflow server against a local SQLite backend (`/mlflow/mlruns.db`) and filesystem artifacts store (`/mlflow/artifacts`) persisted via the `mlflow-data` volume.
+
 ### **Changed**
 
-*   **Model Training Optimization:** Reduced the grid search space for LightGBM in `src/flin/modelling.py` to improve training speed.
-*   **Model Training Optimization:** Set `n_jobs=1` for `LGBMRegressor` in `src/flin/modelling.py` to prevent excessive resource consumption during training.
-*   **DAG Consistency:** Updated `dags/run_pipeline_locally.py` and `dags/nightly_retrain.py` to align with the modified return signature of `modelling.strict_train_tune` after removing the LSTM model.
-*   **Dependency pins for GE integration** Pinned `great-expectations==0.17.21` and `airflow-provider-great-expectations==0.3.0` to ensure API compatibility with the classic (v0.17) config and checkpoint flow.
-*   **Great Expectations configuration aligned with GE 0.17.x**  
-  * Updated `great_expectations/great_expectations.yml` to **`config_version: 3.0`** (required when using a `checkpoint_store` in GE 0.17.x).
-  * Replaced all `FilesystemStoreBackend` occurrences with **`TupleFilesystemStoreBackend`** (the correct class for GE 0.17.x).
-  * Explicitly defined default store names:
-    * `expectations_store_name`, `validations_store_name`, `checkpoint_store_name`, `evaluation_parameter_store_name`.
+* **Airflow → Model registration flow:** Enhanced `train_model_task` to log both component models (HGBR pipeline, LightGBM wrapped with preprocessing), compute hold-out metrics, and register a blended sklearn model under `f1-laptime-blend` in MLflow.
+* **Compose/MLflow hardening:** Moved `pip install mlflow` from container startup to build time for faster, more reliable boots (no network needed at runtime).
+* **Inference environment parity:** Aligned scikit-learn versions across training (Airflow) and serving (app) to avoid pickle/ABI drift when loading the registered model.
+* **App base image:** Installed `libgomp1` in the app image to satisfy LightGBM’s OpenMP runtime dependency during inference.
 
-* **Airflow DAG (nightly_retrain.py)**  
-  * Rewrote the validation task to **not** call `context.run_checkpoint()` directly (which spawned a second, misconfigured context).  
-    Instead, we now build and run an **ephemeral `Checkpoint` in code**, passing a **`RuntimeBatchRequest`** that points directly to the parquet path.
-  * Added defensive logging and checks (showing asset name, parquet path, dir listing, and a head of the validated DataFrame).
-  * Ensured **`reader_method: read_parquet`** (not `parquet`).
+### **Fixed**
 
-* **Airflow DB initialization line in docs/scripts**  
-  * Clarified that the correct command is `airflow db upgrade` (not `db migrate`).
-
-### **Removed**
-
-*   **LSTM Model:** Removed the LSTM model training and evaluation sections from `src/flin/modelling.py` to reduce computational overhead and simplify the pipeline.
-*   **Unused Imports:** Removed `torch` and related imports from `src/flin/modelling.py` as they are no longer needed after the LSTM model removal.
-
-### **Added**
-
-* **Airflow Integration:** Added Apache Airflow services (`postgres`, `airflow-webserver`, `airflow-scheduler`) to `docker-compose.yml` to enable workflow orchestration.
-* **Airflow DAG (`dags/nightly_retrain.py`):** Created the first Airflow DAG to define the nightly model retraining pipeline. The DAG fetches, processes, and trains the model in a structured workflow.
-* **Airflow User:** Created an initial admin user for the Airflow UI.
-* **Airflow Dockerfile (`Dockerfile.airflow`):** Created a dedicated Dockerfile for Airflow to manage its specific dependencies and environment.
-* **Airflow Admin User:** Manually created a new `admin` user to ensure reliable access to the Airflow UI.
-### **Added**
+* **Unfitted blend during eval:** Resolved a `VotingRegressor NotFittedError` by removing reliance on an unfitted ensemble for prediction (use explicit average of component predictions or fit before use), while still logging the blended model artifact for registry serving.
+* **Model load error at serve time:** Eliminated `_RemainderColsList` deserialization errors by pinning consistent scikit-learn versions between training and serving images.
+* **LightGBM runtime:** Fixed `libgomp.so.1: cannot open shared object file` by adding `libgomp1` to the app container.
+* **Request schema mismatch:** Fixed incompatible input types for column `Position` by coercing numerics in `/predict` to the expected floating-point types before invoking the model.
 
 * **Great Expectations Project Scaffolding:**  
   * Created the `great_expectations/` project with standard folders: `expectations/`, `checkpoints/`, `uncommitted/data_docs/`, `plugins/`.
