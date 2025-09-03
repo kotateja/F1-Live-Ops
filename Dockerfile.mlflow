@@ -1,0 +1,12 @@
+# Dockerfile.mlflow
+FROM python:3.11-slim
+WORKDIR /app
+
+# Faster, less chatty pip; longer timeout helps behind slow networks
+ENV PIP_NO_CACHE_DIR=1 PIP_DEFAULT_TIMEOUT=120
+
+# Install only what the server needs
+RUN pip install --upgrade pip && pip install mlflow==2.9.2
+
+EXPOSE 5000
+CMD ["mlflow","server","--host","0.0.0.0","--port","5000","--backend-store-uri","sqlite:////mlflow/mlruns.db","--artifacts-destination","/mlflow/artifacts"]

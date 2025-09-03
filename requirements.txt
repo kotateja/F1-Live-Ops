@@ -6,32 +6,38 @@ uvicorn[standard]
 fastf1==3.5.3
 pandas
 numpy
-scikit-learn
+scikit-learn==1.6.1
 statsmodels
 pyarrow>=12
 
 # HTTP Client
 requests
 
+# Safe pins (keep)
+protobuf==4.25.3
+opentelemetry-api<1.36
+opentelemetry-sdk<1.36
+opentelemetry-proto<1.36
+opentelemetry-exporter-otlp-proto-grpc<1.36
+
 # MLOps - Model Training & Tracking
 lightgbm
 optuna
-mlflow
+mlflow==2.9.2
+sqlalchemy==1.4.49
+psycopg2-binary==2.9.5
 torch
 
 # MLOps - Data Validation
 great-expectations==0.17.21
-airflow-provider-great-expectations==0.3.0
 
+# MLOps - Feature Store (app needs Feast to fetch online features)
+feast==0.39.1
+redis==5.0.4
 
-# MLOps - Feature Store
-feast
-
-# MLOps - Orchestration
-apache-airflow
-apache-airflow-providers-docker
+# Orchestration helpers
 pendulum
-airflow-provider-great-expectations==0.3.0
-# Plotting - Required by source project
+
+# Plotting
 matplotlib
 seaborn

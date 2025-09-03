@@ -1,0 +1,38 @@
+# Do NOT add apache-airflow here — the base image already includes it.
+
+# Great Expectations (used in validation task)
+great-expectations==0.17.21
+airflow-provider-great-expectations==0.3.0
+
+# Feast + Redis + MLflow
+feast==0.39.1
+redis==5.0.4
+mlflow==2.9.2
+
+# Pins to keep MLflow/Feast happy (protobuf<5) and avoid OTEL pulling protobuf>=5
+protobuf==4.25.3
+opentelemetry-api<1.36
+opentelemetry-sdk<1.36
+opentelemetry-proto<1.36
+opentelemetry-exporter-otlp<1.36
+opentelemetry-exporter-otlp-proto-grpc<1.36
+
+# Data/ML stack used by your DAG tasks and flin/*
+pandas
+numpy
+scipy
+pyarrow>=12
+scikit-learn==1.6.1
+statsmodels
+lightgbm
+optuna
+sqlalchemy==1.4.49
+psycopg2-binary==2.9.5
+requests
+
+# Plotting (imported by modelling.py)
+matplotlib
+seaborn
+
+# FastF1 for ETL
+fastf1==3.5.3

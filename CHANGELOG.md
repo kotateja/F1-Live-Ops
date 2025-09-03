@@ -7,8 +7,33 @@ and this project adheres to Semantic Versioning.
 
 ## **\[Unreleased\]**
 
+### V2
+### **Added**
+
+* **Prediction API (`/predict`):** Implemented the `src/service/app.py` endpoint that loads the Production model from the MLflow Model Registry (`models:/f1-laptime-blend/Production`), enforces strict feature order, coerces input types to the training schema, and returns `prediction_seconds`.
+* **Dedicated MLflow image:** Introduced `Dockerfile.mlflow` and updated the `mlflow-server` service to build from this image with a proper `CMD` that runs the MLflow server against a local SQLite backend (`/mlflow/mlruns.db`) and filesystem artifacts store (`/mlflow/artifacts`) persisted via the `mlflow-data` volume.
+
 ### **Changed**
 
+* **Airflow → Model registration flow:** Enhanced `train_model_task` to log both component models (HGBR pipeline, LightGBM wrapped with preprocessing), compute hold-out metrics, and register a blended sklearn model under `f1-laptime-blend` in MLflow.
+* **Compose/MLflow hardening:** Moved `pip install mlflow` from container startup to build time for faster, more reliable boots (no network needed at runtime).
+* **Inference environment parity:** Aligned scikit-learn versions across training (Airflow) and serving (app) to avoid pickle/ABI drift when loading the registered model.
+* **App base image:** Installed `libgomp1` in the app image to satisfy LightGBM’s OpenMP runtime dependency during inference.
+
+### **Fixed**
+
+* **Unfitted blend during eval:** Resolved a `VotingRegressor NotFittedError` by removing reliance on an unfitted ensemble for prediction (use explicit average of component predictions or fit before use), while still logging the blended model artifact for registry serving.
+* **Model load error at serve time:** Eliminated `_RemainderColsList` deserialization errors by pinning consistent scikit-learn versions between training and serving images.
+* **LightGBM runtime:** Fixed `libgomp.so.1: cannot open shared object file` by adding `libgomp1` to the app container.
+* **Request schema mismatch:** Fixed incompatible input types for column `Position` by coercing numerics in `/predict` to the expected floating-point types before invoking the model.
+
+### V1
+### **Changed**
+
+*   **MLflow Integration:** Modified the `train_model_task` in `dags/nightly_retrain.py` to log model parameters, metrics, and artifacts to MLflow.
+*   **Model Training Signature:** Updated the `strict_train_tune` function in `src/flin/modelling.py` to return model performance metrics (MAE) for logging.
+*   **Local Runner Update:** Adjusted `dags/run_pipeline_locally.py` to align with the new return signature of the `strict_train_tune` function.
+*   **Docker Compose Configuration:** Added an MLflow service (`mlflow-server`) to `docker-compose.yml` and configured the Airflow services to communicate with it.
 *   **Model Training Optimization:** Reduced the grid search space for LightGBM in `src/flin/modelling.py` to improve training speed.
 *   **Model Training Optimization:** Set `n_jobs=1` for `LGBMRegressor` in `src/flin/modelling.py` to prevent excessive resource consumption during training.
 *   **DAG Consistency:** Updated `dags/run_pipeline_locally.py` and `dags/nightly_retrain.py` to align with the modified return signature of `modelling.strict_train_tune` after removing the LSTM model.
