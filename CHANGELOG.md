@@ -7,6 +7,7 @@ and this project adheres to Semantic Versioning.
 
 ## **\[Unreleased\]**
 
+### V2
 ### **Added**
 
 * **Prediction API (`/predict`):** Implemented the `src/service/app.py` endpoint that loads the Production model from the MLflow Model Registry (`models:/f1-laptime-blend/Production`), enforces strict feature order, coerces input types to the training schema, and returns `prediction_seconds`.
@@ -25,6 +26,46 @@ and this project adheres to Semantic Versioning.
 * **Model load error at serve time:** Eliminated `_RemainderColsList` deserialization errors by pinning consistent scikit-learn versions between training and serving images.
 * **LightGBM runtime:** Fixed `libgomp.so.1: cannot open shared object file` by adding `libgomp1` to the app container.
 * **Request schema mismatch:** Fixed incompatible input types for column `Position` by coercing numerics in `/predict` to the expected floating-point types before invoking the model.
+
+### V1
+### **Changed**
+
+*   **MLflow Integration:** Modified the `train_model_task` in `dags/nightly_retrain.py` to log model parameters, metrics, and artifacts to MLflow.
+*   **Model Training Signature:** Updated the `strict_train_tune` function in `src/flin/modelling.py` to return model performance metrics (MAE) for logging.
+*   **Local Runner Update:** Adjusted `dags/run_pipeline_locally.py` to align with the new return signature of the `strict_train_tune` function.
+*   **Docker Compose Configuration:** Added an MLflow service (`mlflow-server`) to `docker-compose.yml` and configured the Airflow services to communicate with it.
+*   **Model Training Optimization:** Reduced the grid search space for LightGBM in `src/flin/modelling.py` to improve training speed.
+*   **Model Training Optimization:** Set `n_jobs=1` for `LGBMRegressor` in `src/flin/modelling.py` to prevent excessive resource consumption during training.
+*   **DAG Consistency:** Updated `dags/run_pipeline_locally.py` and `dags/nightly_retrain.py` to align with the modified return signature of `modelling.strict_train_tune` after removing the LSTM model.
+*   **Dependency pins for GE integration** Pinned `great-expectations==0.17.21` and `airflow-provider-great-expectations==0.3.0` to ensure API compatibility with the classic (v0.17) config and checkpoint flow.
+*   **Great Expectations configuration aligned with GE 0.17.x**  
+  * Updated `great_expectations/great_expectations.yml` to **`config_version: 3.0`** (required when using a `checkpoint_store` in GE 0.17.x).
+  * Replaced all `FilesystemStoreBackend` occurrences with **`TupleFilesystemStoreBackend`** (the correct class for GE 0.17.x).
+  * Explicitly defined default store names:
+    * `expectations_store_name`, `validations_store_name`, `checkpoint_store_name`, `evaluation_parameter_store_name`.
+
+* **Airflow DAG (nightly_retrain.py)**  
+  * Rewrote the validation task to **not** call `context.run_checkpoint()` directly (which spawned a second, misconfigured context).  
+    Instead, we now build and run an **ephemeral `Checkpoint` in code**, passing a **`RuntimeBatchRequest`** that points directly to the parquet path.
+  * Added defensive logging and checks (showing asset name, parquet path, dir listing, and a head of the validated DataFrame).
+  * Ensured **`reader_method: read_parquet`** (not `parquet`).
+
+* **Airflow DB initialization line in docs/scripts**  
+  * Clarified that the correct command is `airflow db upgrade` (not `db migrate`).
+
+### **Removed**
+
+*   **LSTM Model:** Removed the LSTM model training and evaluation sections from `src/flin/modelling.py` to reduce computational overhead and simplify the pipeline.
+*   **Unused Imports:** Removed `torch` and related imports from `src/flin/modelling.py` as they are no longer needed after the LSTM model removal.
+
+### **Added**
+
+* **Airflow Integration:** Added Apache Airflow services (`postgres`, `airflow-webserver`, `airflow-scheduler`) to `docker-compose.yml` to enable workflow orchestration.
+* **Airflow DAG (`dags/nightly_retrain.py`):** Created the first Airflow DAG to define the nightly model retraining pipeline. The DAG fetches, processes, and trains the model in a structured workflow.
+* **Airflow User:** Created an initial admin user for the Airflow UI.
+* **Airflow Dockerfile (`Dockerfile.airflow`):** Created a dedicated Dockerfile for Airflow to manage its specific dependencies and environment.
+* **Airflow Admin User:** Manually created a new `admin` user to ensure reliable access to the Airflow UI.
+### **Added**
 
 * **Great Expectations Project Scaffolding:**  
   * Created the `great_expectations/` project with standard folders: `expectations/`, `checkpoints/`, `uncommitted/data_docs/`, `plugins/`.
